@@ -1,9 +1,6 @@
 package com.felix;
 
-import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.clients.producer.*;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.Before;
 import org.junit.Test;
@@ -14,8 +11,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.Properties;
-import java.util.concurrent.Future;
 
 /**
  * @author felix
@@ -42,9 +39,12 @@ public class KafkaProduceTest {
     private void sendMsg(String topic, String key, String msg) {
         ProducerRecord<String, String> record = new ProducerRecord<>(topic, key, msg);
         try {
-            Future<RecordMetadata> future = producer.send(record);
-            RecordMetadata recordMetadata = future.get();
-            System.out.println(recordMetadata);
+            producer.send(record, new Callback() {
+                @Override
+                public void onCompletion(RecordMetadata recordMetadata, Exception e) {
+                    System.out.println(recordMetadata);
+                }
+            });
         } catch (Exception e) {
             log.error("MQ发送消息异常: ", e);
         }
@@ -55,12 +55,13 @@ public class KafkaProduceTest {
         //given
         InputStream inputStream = KafkaProduceTest.class.getClassLoader().getResourceAsStream("Hamlet.txt");
 
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 System.out.println(line);
                 sendMsg(topic, null, line);
             }
+            producer.flush();
         } catch (IOException e) {
             e.printStackTrace();
         }

@@ -16,6 +16,7 @@ import java.util.Properties;
 
 /**
  * @author felix
+ * https://stackoverflow.com/questions/64226597/apache-flink-to-use-s3-for-backend-state-and-checkpoints
  */
 public class KafkaWordCount {
 
@@ -41,12 +42,9 @@ public class KafkaWordCount {
             @Override
             public void flatMap(String value, Collector<String> collector) throws Exception {
                 // 处理数据的逻辑
-                String[] words = value.split(" ");
-                for (String word : words) {
-                    collector.collect(word);
-                }
+                collector.collect(value);
             }
-        });
+        }).name("word-input");
 
         //设置检查点
         env.enableCheckpointing(5000);
@@ -57,7 +55,7 @@ public class KafkaWordCount {
             public void invoke(String value) throws Exception {
                 log.info(value);
             }
-        });
+        }).name("word-count");
 
         //执行程序
         env.execute("FlinkKafkaWorldCount");
