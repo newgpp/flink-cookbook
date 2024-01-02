@@ -6,8 +6,10 @@ import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.util.Collector;
@@ -50,11 +52,14 @@ public class KafkaWordCount {
             }
         }).name("word-input");
 
-        //设置检查点
-        env.enableCheckpointing(35000);
-        env.getCheckpointConfig().setCheckpointTimeout(10000);
+        //检查点
+        CheckpointConfig checkpointConfig = env.getCheckpointConfig();
+        checkpointConfig.setCheckpointInterval(25000);
+        checkpointConfig.setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+        //手动取消时保留数据
+        checkpointConfig.setExternalizedCheckpointCleanup(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
         //s3a flink-s3-fs-hadoop
-        env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage("s3a://s3-bucket/checkpoints/"));
+        checkpointConfig.setCheckpointStorage(new FileSystemCheckpointStorage("s3a://s3-bucket/checkpoints/"));
 
         dataStream.addSink(new SinkFunction<String>() {
             @Override
