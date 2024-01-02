@@ -1,18 +1,18 @@
 package com.felix;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.connector.kafka.source.KafkaSource;
+import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.util.Collector;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Properties;
 
 /**
  * @author felix
@@ -31,12 +31,16 @@ public class KafkaWordCount {
         String brokers = "192.168.159.111:9092";
         String topic = "wc-topic";
         String groupId = "wc-topic-flink-group-1";
-        Properties props = new Properties();
-        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers);
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
 
-        FlinkKafkaConsumer<String> flinkKafkaConsumer = new FlinkKafkaConsumer<>(topic, new SimpleStringSchema(), props);
-        DataStreamSource<String> inputDataStream = env.addSource(flinkKafkaConsumer);
+        KafkaSource<String> kafkaSource = KafkaSource.<String>builder()
+                .setBootstrapServers(brokers)
+                .setTopics(topic)
+                .setGroupId(groupId)
+                .setStartingOffsets(OffsetsInitializer.earliest())
+                .setValueOnlyDeserializer(new SimpleStringSchema())
+                .build();
+
+        DataStreamSource<String> inputDataStream = env.fromSource(kafkaSource, WatermarkStrategy.noWatermarks(), "Kafka Source");
         //对输入数据进行转换和处理
         DataStream<String> dataStream = inputDataStream.flatMap(new FlatMapFunction<String, String>() {
             @Override
@@ -47,8 +51,10 @@ public class KafkaWordCount {
         }).name("word-input");
 
         //设置检查点
-        env.enableCheckpointing(5000);
+        env.enableCheckpointing(35000);
         env.getCheckpointConfig().setCheckpointTimeout(10000);
+        //s3a flink-s3-fs-hadoop
+        env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage("s3a://s3-bucket/checkpoints/"));
 
         dataStream.addSink(new SinkFunction<String>() {
             @Override
