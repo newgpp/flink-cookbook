@@ -8,7 +8,6 @@ import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsIni
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -42,15 +41,16 @@ public class KafkaWordCount {
                 .setValueOnlyDeserializer(new SimpleStringSchema())
                 .build();
 
-        DataStreamSource<String> inputDataStream = env.fromSource(kafkaSource, WatermarkStrategy.noWatermarks(), "Kafka Source");
         //对输入数据进行转换和处理
-        DataStream<String> dataStream = inputDataStream.flatMap(new FlatMapFunction<String, String>() {
-            @Override
-            public void flatMap(String value, Collector<String> collector) throws Exception {
-                // 处理数据的逻辑
-                collector.collect(value);
-            }
-        }).name("word-input");
+        DataStream<String> dataStream = env.fromSource(kafkaSource, WatermarkStrategy.noWatermarks(), "Kafka Source")
+                .uid("uid_kafka_source")
+                .flatMap(new FlatMapFunction<String, String>() {
+                    @Override
+                    public void flatMap(String value, Collector<String> collector) throws Exception {
+                        // 处理数据的逻辑
+                        collector.collect(value);
+                    }
+                }).uid("uid_map_word").name("word-input");
 
         //检查点
         CheckpointConfig checkpointConfig = env.getCheckpointConfig();
@@ -66,7 +66,7 @@ public class KafkaWordCount {
             public void invoke(String value) throws Exception {
                 log.info(value);
             }
-        }).name("word-count");
+        }).uid("uid_print").name("word-count");
 
         //执行程序
         env.execute("FlinkKafkaWorldCount");
