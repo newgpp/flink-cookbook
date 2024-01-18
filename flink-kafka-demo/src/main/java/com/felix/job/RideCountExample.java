@@ -23,12 +23,14 @@ import com.felix.sources.TaxiRideGenerator;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
-import java.util.stream.Stream;
+import java.util.Properties;
 
 /**
  * Example that counts the rides for each driver.
@@ -48,7 +50,12 @@ public class RideCountExample {
     public static void main(String[] args) throws Exception {
 
         //设置流执行环境
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+//        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        Properties props = new Properties();
+        props.put("metrics.reporter.jmx.factory.class", "org.apache.flink.metrics.jmx.JMXReporterFactory");
+        Configuration conf = ConfigurationUtils.createConfiguration(props);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(conf);
 
         //创建数据源
         DataStreamSource<TaxiRide> rides = env.addSource(new TaxiRideGenerator());
@@ -66,7 +73,6 @@ public class RideCountExample {
 
         //计算司机行程数量
 //        DataStream<Tuple2<Long, Long>> rideCounts = keyedByDriverId.sum(1);
-
         DataStream<Tuple2<Long, Long>> rideCounts = keyedByDriverId.reduce(new ReduceFunction<Tuple2<Long, Long>>() {
             @Override
             public Tuple2<Long, Long> reduce(Tuple2<Long, Long> value1, Tuple2<Long, Long> value2) throws Exception {
