@@ -163,7 +163,7 @@ under the License.
 							</filters>
 							<transformers>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-									<mainClass>org.myorg.quickstart.WordCountJob</mainClass>
+									<mainClass>org.myorg.quickstart.job.WordCountJob</mainClass>
 								</transformer>
 							</transformers>
 						</configuration>
