@@ -1,4 +1,4 @@
-package org.myorg.quickstart.job;
+package com.felix.job;
 
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -11,7 +11,7 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
-import org.myorg.quickstart.source.MyStreamingSource;
+import com.felix.source.MyStreamingSource;
 
 public class MySqlJob {
 

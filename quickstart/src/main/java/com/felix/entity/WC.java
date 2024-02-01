@@ -1,4 +1,4 @@
-package org.myorg.quickstart.entity;
+package com.felix.entity;
 
 public class WC {
 

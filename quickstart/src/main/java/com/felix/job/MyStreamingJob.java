@@ -1,4 +1,4 @@
-package org.myorg.quickstart.job;
+package com.felix.job;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -6,7 +6,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.myorg.quickstart.source.MyStreamingSource;
+import com.felix.source.MyStreamingSource;
 
 import java.util.Arrays;
 import java.util.List;

@@ -1,4 +1,4 @@
-package org.myorg.quickstart.source;
+package com.felix.source;
 
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 

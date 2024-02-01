@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.myorg.quickstart.job;
+package com.felix.job;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.util.Collector;
-import org.myorg.quickstart.entity.WC;
+import com.felix.entity.WC;
 
 import java.util.Arrays;
 import java.util.List;
