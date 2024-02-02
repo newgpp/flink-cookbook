@@ -163,7 +163,16 @@ private static class AutomaticWatermarkContext<T> extends WatermarkContext<T> {
 
 如果Flink系统中出现了一个WaterMark T，那么就意味着EventTime < T的数据都已经到达窗口
 
-窗口的结束时间和T相同的那个窗口被出发进行计算了
+窗口的结束时间和T相同的那个窗口被触发进行计算了
+
+也就是说：水印是Flink判断迟到数据的标准，同时也是窗口触发的标记
+
+当并行度大于1的情况下，多个流会产生多个水印和窗口，这时候Flink会选取时间戳最小的水印
+```
+
+- 水印是如何生成的
+```text
+
 ```
 
 - 时间戳
