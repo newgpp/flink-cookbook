@@ -4,7 +4,6 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -19,6 +18,8 @@ import javax.annotation.Nullable;
  * window的触发条件
  * watermark时间 >= window_end_time
  * [window_start_time, window_end_time)
+ * <p>
+ * https://zhuanlan.zhihu.com/p/126095557
  */
 public class MyTimeJob {
 
@@ -26,14 +27,12 @@ public class MyTimeJob {
         waterMarkJob1();
     }
 
-
     private static void waterMarkJob1() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
         env.getConfig().setAutoWatermarkInterval(200);
         SingleOutputStreamOperator<String> dataStream = env.socketTextStream("192.168.159.111", 8000)
                 .assignTimestampsAndWatermarks(new MyWatermark());
-
 
         dataStream.map(new MapFunction<String, Tuple2<String, String>>() {
                     @Override
