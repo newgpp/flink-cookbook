@@ -183,3 +183,51 @@ ProcessingTime数据不携带任何时间戳信息
 
 IngestionTime和EventTime类似，不同的是Flink会使用系统时间作为时间戳绑定到每条数据上
 ```
+
+
+- 触发代码
+```java
+@PublicEvolving
+public class EventTimeTrigger extends Trigger<Object, TimeWindow> {
+    private static final long serialVersionUID = 1L;
+
+    private EventTimeTrigger() {
+    }
+
+    @Override
+    public TriggerResult onElement(Object element, long timestamp, TimeWindow window, TriggerContext ctx) throws Exception {
+        //[start, end) 
+        // window.maxTimestamp = end - 1
+        if (window.maxTimestamp() <= ctx.getCurrentWatermark()) {
+            // if the watermark is already past the window fire immediately
+            return TriggerResult.FIRE;
+        } else {
+            ctx.registerEventTimeTimer(window.maxTimestamp());
+            return TriggerResult.CONTINUE;
+        }
+    }
+}
+```
+
+- com.felix.job.MyTimeJob.waterMarkJob1 输入数据
+```text
+hello,1553503185000
+hello,1553503188000
+hello,1553503189000
+hello,1553503190000
+hello,1553503187000
+hello,1553503186000
+hello,1553503191000
+hello,1553503192000
+hello,1553503193000
+hello,1553503194000
+hello,1553503195000
+hello,1553503196000
+hello,1553503197000
+hello,1553503198000
+hello,1553503199000
+hello,1553503200000
+hello,1553503201000
+hello,1553503202000
+hello,1553503203000
+```

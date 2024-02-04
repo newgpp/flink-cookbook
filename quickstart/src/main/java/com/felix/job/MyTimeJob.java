@@ -1,9 +1,11 @@
 package com.felix.job;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -12,71 +14,70 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 
 import javax.annotation.Nullable;
 
+/**
+ * @ EventTimeTrigger
+ * window的触发条件
+ * watermark时间 >= window_end_time
+ * [window_start_time, window_end_time)
+ */
 public class MyTimeJob {
 
     public static void main(String[] args) throws Exception {
-        waterMarkDemo();
+        waterMarkJob1();
     }
 
-    /**
-     * 实时接收Socket的DataStream程序
-     * 代码中使用AssignerWithPeriodicWatermarks来设置水印
-     * 将接收的数据进行转换，分组，并在一个5s的窗口内，获取该窗口中第二个元素最小的那条数据
-     *
-     * 实验数据:
-     * flink,1588659181000
-     * flink,1588659182000
-     * flink,1588659183000
-     * flink,1588659184000
-     * flink,1588659185000
-     *
-     *
-     *
-     *
-     */
-    private static void waterMarkDemo() throws Exception {
+
+    private static void waterMarkJob1() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        //设置为EventTime事件
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-        //设置水印生成事件间隔100ms
-        env.getConfig().setAutoWatermarkInterval(100);
+        env.getConfig().setAutoWatermarkInterval(200);
+        SingleOutputStreamOperator<String> dataStream = env.socketTextStream("192.168.159.111", 8000)
+                .assignTimestampsAndWatermarks(new MyWatermark());
 
-        //linux环境监听端口 nc -lk 8000
-        env.socketTextStream("192.168.159.111", 8000)
-                .assignTimestampsAndWatermarks(new AssignerWithPeriodicWatermarks<String>() {
 
-                    private Long currentTimeStamp = 0L;
-                    private Long maxOutOfOrderness = 5000L;
-
-                    @Nullable
+        dataStream.map(new MapFunction<String, Tuple2<String, String>>() {
                     @Override
-                    public Watermark getCurrentWatermark() {
-                        return new Watermark(currentTimeStamp - maxOutOfOrderness);
-                    }
-
-                    @Override
-                    public long extractTimestamp(String s, long previousElementTimestamp) {
-                        String[] arr = s.split(",");
-                        long timeStamp = Long.parseLong(arr[1]);
-                        currentTimeStamp = Math.max(timeStamp, currentTimeStamp);
-//                        System.err.println(s + "EventTime:" + timeStamp + ",watermark:" + (currentTimeStamp - maxOutOfOrderness));
-                        return timeStamp;
+                    public Tuple2<String, String> map(String s) throws Exception {
+                        return new Tuple2<String, String>(s.split(",")[0], s.split(",")[1]);
                     }
                 })
-                .map(new MapFunction<String, Tuple2<String, Long>>() {
-                    @Override
-                    public Tuple2<String, Long> map(String s) throws Exception {
-                        String[] split = s.split(",");
-
-                        return new Tuple2<>(split[0], Long.parseLong(split[1]));
-                    }
-                }).keyBy(0)
+                .keyBy(0)
                 .window(TumblingEventTimeWindows.of(Time.seconds(5)))
-                .minBy(1)
+                .reduce(new ReduceFunction<Tuple2<String, String>>() {
+                    @Override
+                    public Tuple2<String, String> reduce(Tuple2<String, String> value1, Tuple2<String, String> value2) throws Exception {
+                        return new Tuple2<>(value1.f0, value1.f1 + "-" + value2.f1);
+                    }
+                })
                 .print();
 
-        env.execute("WaterMark Job");
+        env.execute("waterMarkJob1");
+    }
 
+    public static class MyWatermark implements AssignerWithPeriodicWatermarks<String> {
 
+        // 当前时间戳
+        long currentTimeStamp = 0L;
+        // 允许的迟到数据
+        long maxDelayAllowed = 3000L;
+        // 当前水位线
+        long currentWaterMark;
+
+        @Nullable
+        @Override
+        public Watermark getCurrentWatermark() {
+            currentWaterMark = currentTimeStamp - maxDelayAllowed;
+            System.out.println("当前水位线:" + currentWaterMark);
+            return new Watermark(currentWaterMark);
+        }
+
+        @Override
+        public long extractTimestamp(String s, long l) {
+            String[] arr = s.split(",");
+            long timeStamp = Long.parseLong(arr[1]);
+            currentTimeStamp = Math.max(timeStamp, currentTimeStamp);
+            System.out.println("Key:" + arr[0] + ",EventTime:" + timeStamp + ",前一条数据的水位线:" + currentWaterMark);
+            return timeStamp;
+        }
     }
 }
