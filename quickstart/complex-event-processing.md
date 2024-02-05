@@ -1,11 +1,13 @@
 ### complex event processing（复杂事件处理）
 
 - CEP解决哪些问题
+
 ```text
 1. 大量订单交易中发现那些虚假的交易
 2. 在网站的访问日志中寻找那些使用脚本或者工具“爆破”登录的用户
 3. 在快递运输中发现那些滞留很久没有签收的包裹
 ```
+
 - 模式定义-简单模式
 
 | 模式操作 | 描述 |
@@ -27,13 +29,14 @@
 2. followedBy() 松散连续: 忽略匹配的事件之间的不匹配的事件。
 3. followedByAny() 不确定的松散连续: 更进一步的松散连续，允许忽略掉一些匹配事件的附加匹配。
 4. notNext() 不想后面直接连着一个特定事件
-5. notFollowedBy() 
+5. notFollowedBy()
 
 - 模式定义-匹配后的忽略模式
   <br/>
-![img_4.png](image/img_204.png)
+  ![img_4.png](image/img_204.png)
 
 - Flink CEP的整个过程
+
 ```text
 1. 从一个Source作为输入
 2. 经过一个Pattern算子转换为PatternStream
@@ -41,6 +44,88 @@
 ```
 
 - PatternStream
-```java
 
+```java
+public class PatternStream<T> {
+    public <R> SingleOutputStreamOperator<R> process(
+            final PatternProcessFunction<T, R> patternProcessFunction,
+            final TypeInformation<R> outTypeInfo) {
+
+        return builder.build(
+                outTypeInfo,
+                builder.clean(patternProcessFunction));
+    }
+}
+```
+
+- PatternStreamBuilder
+
+```text
+<OUT, K> SingleOutputStreamOperator<OUT> build(
+			final TypeInformation<OUT> outTypeInfo,
+			final PatternProcessFunction<IN, OUT> processFunction)
+```
+
+- CepOperator 实际处理逻辑
+
+```java
+public class CepOperator<IN, KEY, OUT>
+        extends AbstractUdfStreamOperator<OUT, PatternProcessFunction<IN, OUT>>
+        implements OneInputStreamOperator<IN, OUT>, Triggerable<KEY, VoidNamespace> {
+
+    @Override
+    public void onEventTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
+
+        // 1) get the queue of pending elements for the key and the corresponding NFA,
+        // 2) process the pending elements in event time order and custom comparator if exists
+        //		by feeding them in the NFA
+        // 3) advance the time to the current watermark, so that expired patterns are discarded.
+        // 4) update the stored state for the key, by only storing the new NFA and MapState iff they
+        //		have state to be used later.
+        // 5) update the last seen watermark.
+
+        // STEP 1
+        PriorityQueue<Long> sortedTimestamps = getSortedTimestamps();
+        NFAState nfaState = getNFAState();
+
+        // STEP 2
+        while (!sortedTimestamps.isEmpty() && sortedTimestamps.peek() <= timerService.currentWatermark()) {
+            long timestamp = sortedTimestamps.poll();
+            advanceTime(nfaState, timestamp);
+            try (Stream<IN> elements = sort(elementQueueState.get(timestamp))) {
+                elements.forEachOrdered(
+                        event -> {
+                            try {
+                                processEvent(nfaState, event, timestamp);
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        }
+                );
+            }
+            elementQueueState.remove(timestamp);
+        }
+
+        // STEP 3
+        advanceTime(nfaState, timerService.currentWatermark());
+
+        // STEP 4
+        updateNFA(nfaState);
+
+        if (!sortedTimestamps.isEmpty() || !partialMatches.isEmpty()) {
+            saveRegisterWatermarkTimer();
+        }
+
+        // STEP 5
+        updateLastSeenWatermark(timerService.currentWatermark());
+    }
+}
+
+```
+
+- NFA
+```text
+NFA的全称为非确定有限自动机，NFA中包含了模式匹配中的各个状态间的转换
+
+NFT这个类核心的两个方法：process 和 advanceTime
 ```
