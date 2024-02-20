@@ -7,6 +7,8 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
+import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
+import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -32,7 +34,7 @@ public class MyTimeJob {
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
         env.getConfig().setAutoWatermarkInterval(200);
         SingleOutputStreamOperator<String> dataStream = env.socketTextStream("192.168.159.111", 8000)
-                .assignTimestampsAndWatermarks(new MyWatermark());
+                .assignTimestampsAndWatermarks(new MyWaterMarkLite(Time.seconds(3)));
 
         dataStream.map(new MapFunction<String, Tuple2<String, String>>() {
                     @Override
@@ -53,6 +55,9 @@ public class MyTimeJob {
         env.execute("waterMarkJob1");
     }
 
+    /**
+     * 自定义水印
+     */
     public static class MyWatermark implements AssignerWithPeriodicWatermarks<String> {
 
         // 当前时间戳
@@ -77,6 +82,34 @@ public class MyTimeJob {
             currentTimeStamp = Math.max(timeStamp, currentTimeStamp);
             System.out.println("Key:" + arr[0] + ",EventTime:" + timeStamp + ",前一条数据的水位线:" + currentWaterMark);
             return timeStamp;
+        }
+    }
+
+    /**
+     * 允许一定时间乱序
+     */
+    public static class MyWaterMarkLite extends BoundedOutOfOrdernessTimestampExtractor<String>{
+
+        public MyWaterMarkLite(Time maxOutOfOrderness) {
+            super(maxOutOfOrderness);
+        }
+
+        @Override
+        public long extractTimestamp(String element) {
+            String[] arr = element.split(",");
+            return Long.parseLong(arr[1]);
+        }
+    }
+
+    /**
+     * 单调增长
+     */
+    public static class MyWaterMarkIncrease extends AscendingTimestampExtractor<String>{
+
+        @Override
+        public long extractAscendingTimestamp(String element) {
+            String[] arr = element.split(",");
+            return Long.parseLong(arr[1]);
         }
     }
 }
