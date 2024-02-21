@@ -34,7 +34,7 @@ public class MyTimeJob {
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
         env.getConfig().setAutoWatermarkInterval(200);
         SingleOutputStreamOperator<String> dataStream = env.socketTextStream("192.168.159.111", 8000)
-                .assignTimestampsAndWatermarks(new MyWaterMarkLite(Time.seconds(3)));
+                .assignTimestampsAndWatermarks(new MyWatermark());
 
         dataStream.map(new MapFunction<String, Tuple2<String, String>>() {
                     @Override
