@@ -43,6 +43,7 @@ public class MyTopNJob {
         //10s滚动窗口 windowAll汇集到一个节点执行
         DataStream<String> process = reduce
                 .windowAll(TumblingProcessingTimeWindows.of(Time.seconds(10L)))
+
                 .process(new ProcessAllWindowFunction<GoodsOrder, String, TimeWindow>() {
                     @Override
                     public void process(ProcessAllWindowFunction<GoodsOrder, String, TimeWindow>.Context context, Iterable<GoodsOrder> elements, Collector<String> out) throws Exception {
