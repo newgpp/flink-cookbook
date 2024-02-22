@@ -6,6 +6,8 @@
 
 ### Flink 支持了三种类型的剔除器
 
+https://www.jianshu.com/p/574800567914
+
 - CountEvictor：数量剔除器
 ```text
 CountEvictor 是数量剔除器，在 Window 中保留指定数量的元素，并从窗口头部开始丢弃其余元素。
