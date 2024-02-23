@@ -1,9 +1,14 @@
 package com.felix.job;
 
 import com.felix.entity.UserClick;
+import org.apache.commons.codec.digest.MurmurHash2;
 import org.apache.commons.lang3.time.DateFormatUtils;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
@@ -22,6 +27,7 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ContinuousProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
+import org.roaringbitmap.longlong.Roaring64NavigableMap;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -61,26 +67,43 @@ public class MyPvUvJob {
     public static class MyProcessWindowFunction extends ProcessWindowFunction<UserClick, Tuple3<String, String, Integer>, String, TimeWindow> {
 
         private transient ValueState<Integer> pvState;
+        private transient MapState<String, String> uvState;
+        private transient ValueState<Roaring64NavigableMap> uvBitMapState;
 
         @Override
         public void open(Configuration parameters) throws Exception {
             super.open(parameters);
             pvState = this.getRuntimeContext().getState(new ValueStateDescriptor<>("pv", Integer.class));
+            uvState = this.getRuntimeContext().getMapState(new MapStateDescriptor<>("uv", String.class, String.class));
+            uvBitMapState = this.getRuntimeContext().getState(new ValueStateDescriptor<>("uvBitMap", TypeInformation.of(new TypeHint<Roaring64NavigableMap>() {
+            })));
         }
 
         @Override
         public void process(String s, Context context, Iterable<UserClick> elements, Collector<Tuple3<String, String, Integer>> out) throws Exception {
+            Roaring64NavigableMap uvBitMap = uvBitMapState.value();
+            if (uvBitMap == null) {
+                uvBitMap = new Roaring64NavigableMap();
+            }
             int pv = 0;
             for (UserClick ignored : elements) {
                 pv = pv + 1;
+                uvState.put(ignored.getUserId(), null);
+                uvBitMap.add(MurmurHash2.hash64(ignored.getUserId()));
             }
-            Integer value = pvState.value();
-            if (value == null) {
-                pvState.update(pv);
-            } else {
-                pvState.update(value + pv);
+            int value = pvState.value() == null ? 0 : pvState.value();
+            pvState.update(value + pv);
+
+            uvBitMapState.update(uvBitMap);
+            int uv = 0;
+            for (String ignored : uvState.keys()) {
+                uv = uv + 1;
             }
+
             out.collect(Tuple3.of(s, "pv", pvState.value()));
+            out.collect(Tuple3.of(s, "uv", uv));
+            out.collect(Tuple3.of(s, "uv2", uvBitMap.getIntCardinality()));
+            System.out.println("=========>processWindow, this hasCode:" + this.hashCode() + ", pvState hashCode:" + pvState.hashCode());
         }
     }
 
