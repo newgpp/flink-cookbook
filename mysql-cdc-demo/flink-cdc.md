@@ -2,10 +2,7 @@
 
 https://ververica.github.io/flink-cdc-connectors/release-2.0/content/about.html#supported-flink-versions
 
-| Flink CDC Connector Version | Flink Version |
-|-----------------------------|---------------|
-| 2.0.*                       | 1.13.*        |
-
+![img.png](img.png)
 
 
 ### 常见问题
@@ -30,3 +27,8 @@ MySQL CDC全量阶段读取时间过长，导致最后一个分片数据量过�
 
 您需要根据业务情况设置合理的Checkpoint间隔时间。
 ```
+
+
+### 维表Join
+
+https://guosmilesmile.github.io/2020/08/21/Flink-SQL-join-%E7%BB%B4%E8%A1%A8/
