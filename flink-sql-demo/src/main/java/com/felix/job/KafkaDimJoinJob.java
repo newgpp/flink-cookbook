@@ -57,6 +57,7 @@ public class KafkaDimJoinJob {
                 ") WITH (\n" +
                 "\t'connector' = 'jdbc',\n" +
                 "\t'url' = 'jdbc:mysql://192.168.159.111:3306/oper_db',\n" +
+                "\t'driver' = 'com.mysql.cj.jdbc.Driver',\n" +
                 "\t'lookup.cache.max-rows' = '10',\n" +
                 "\t'lookup.cache.ttl' = '60s',\n" +
                 "\t'username' = 'root',\n" +

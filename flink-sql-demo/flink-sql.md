@@ -1,3 +1,10 @@
+### JDBC connectors
+
+https://nightlies.apache.org/flink/flink-docs-release-1.15/zh/docs/connectors/table/jdbc/
+
+### upsert kafka
+
+
 ### Flink CDC 版本对应关系
 
 https://ververica.github.io/flink-cdc-connectors/release-2.0/content/about.html#supported-flink-versions
