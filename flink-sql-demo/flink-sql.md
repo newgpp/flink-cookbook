@@ -2,6 +2,13 @@
 
 https://nightlies.apache.org/flink/flink-docs-release-1.15/zh/docs/connectors/table/jdbc/
 
+### kafka connector
+
+- flink kafka offset提交模式
+
+  https://www.cnblogs.com/Springmoon-venn/p/13405140.html
+
+
 ### upsert kafka
 
 

@@ -1,9 +1,14 @@
 package com.felix.job;
 
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
+
+import java.time.Duration;
 
 /**
  *
@@ -12,9 +17,11 @@ public class KafkaDimJoinJob {
 
     public static void main(String[] args) {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.getCheckpointConfig().setCheckpointInterval(3_000);
-        env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+        env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.AT_LEAST_ONCE);
+        env.getCheckpointConfig().setCheckpointInterval(15_000);
+        env.setStateBackend(new EmbeddedRocksDBStateBackend());
         StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+        tableEnv.getConfig().setIdleStateRetention(Duration.ofMinutes(15));
 
         tableEnv.executeSql("CREATE TABLE `t_order_kafka` (\n" +
                 "  proctime as PROCTIME(),\n" +
@@ -33,6 +40,8 @@ public class KafkaDimJoinJob {
                 "\t'topic' = 'my-topic',\n" +
                 "\t'properties.bootstrap.servers' = '192.168.159.111:9092',\n" +
                 "\t'properties.group.id' = 'order_join_group_01',\n" +
+                "\t'properties.enable.auto.commit' = 'true',\n" +
+                "\t'properties.auto.commit.interval.ms' = '1000',\n" +
                 "\t'scan.startup.mode' = 'group-offsets',\n" +
                 "\t'value.json.ignore-parse-errors' = 'true',\n" +
                 "\t'value.format' = 'json'\n" +
@@ -44,6 +53,7 @@ public class KafkaDimJoinJob {
                 ") WITH (\n" +
                 "\t'connector' = 'jdbc',\n" +
                 "\t'url' = 'jdbc:mysql://192.168.159.111:3306/oper_db',\n" +
+                "\t'driver' = 'com.mysql.cj.jdbc.Driver',\n" +
                 "\t'lookup.cache.max-rows' = '10',\n" +
                 "\t'lookup.cache.ttl' = '60s',\n" +
                 "\t'username' = 'root',\n" +
@@ -69,9 +79,14 @@ public class KafkaDimJoinJob {
                 "LEFT JOIN dim_status FOR SYSTEM_TIME AS OF t1.proctime as t2 ON t1.order_status = t2.status_code " +
                 "LEFT JOIN dim_customer FOR SYSTEM_TIME AS OF t1.proctime as t3 ON t1.customer_id = t3.id");
 
-        tableResult.collect().forEachRemaining(x -> {
-            System.out.println(x);
-        });
+        try (CloseableIterator<Row> it = tableResult.collect()) {
+            while (it.hasNext()) {
+                Row row = it.next();
+                System.out.println(row);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
 
     }
