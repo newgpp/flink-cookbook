@@ -25,7 +25,7 @@ public class TableDataStreamConvertJob {
 
     public static void main(String[] args) throws Exception {
 //        table2DataStream();
-        dataStream2Table();
+//        dataStream2Table();
     }
 
     private static void dataStream2Table() throws Exception {
@@ -96,7 +96,14 @@ public class TableDataStreamConvertJob {
                 .flatMap(new FlatMapFunction<Row, Object>() {
                     @Override
                     public void flatMap(Row row, Collector<Object> collector) throws Exception {
-                        long l = Long.parseLong(String.valueOf(row.getField("sum_money")));
+                        Object window_start = row.getField("window_start");
+                        Object window_end = row.getField("window_end");
+                        Object sum_money = row.getField("sum_money");
+                        Object count_distinct_id = row.getField("count_distinct_id");
+
+                        log.info("=====> row, window_start={}, window_end={}, sum_money={}, count_distinct_id={}", window_start, window_end, sum_money, count_distinct_id);
+
+                        long l = Long.parseLong(String.valueOf(sum_money));
 
                         if (l > 10000L) {
                             log.info("==================>报警，超过 1w");
